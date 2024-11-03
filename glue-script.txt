@@ -30,7 +30,7 @@ dynamic_frame_with_timestamp = DynamicFrame.fromDF(df_with_timestamp, glueContex
 
 # Define the S3 sink where data will be written
 sink = glueContext.getSink(
-    path="s3://aws-glue-s3-etl-bucket/processedData/customers_processed/",
+    path="s3://S3BucketForETLProject/processedData/customers_processed/",
     connection_type="s3",
     updateBehavior="UPDATE_IN_DATABASE",
     partitionKeys=["processed_timestamp"],
