@@ -1,0 +1,49 @@
+import sys
+from pyspark.context import SparkContext
+from awsglue.context import GlueContext
+from awsglue.job import Job
+from awsglue.utils import getResolvedOptions
+from pyspark.sql.functions import current_timestamp
+from awsglue.dynamicframe import DynamicFrame
+
+# Get the job name as a parameter
+args = getResolvedOptions(sys.argv, ['JOB_NAME'])
+sc = SparkContext()
+glueContext = GlueContext(sc)
+spark = glueContext.spark_session
+job = Job(glueContext)
+job.init(args['JOB_NAME'], args)
+
+# Load data from AWS Glue Data Catalog
+datasource0 = glueContext.create_dynamic_frame.from_catalog(
+    database="raw_data",
+    table_name="customers_raw",
+    transformation_ctx="datasource0"
+)
+
+# Add a current timestamp column using PySpark
+df = datasource0.toDF()
+df_with_timestamp = df.withColumn("timestamp", current_timestamp())
+
+# Convert back to DynamicFrame for Glue compatibility
+dynamic_frame_with_timestamp = DynamicFrame.fromDF(df_with_timestamp, glueContext, "dynamic_frame_with_timestamp")
+
+# Define the S3 sink where data will be written
+sink = glueContext.getSink(
+    path="s3://aws-glue-s3-etl-bucket/processedData/customers_processed/",
+    connection_type="s3",
+    updateBehavior="UPDATE_IN_DATABASE",
+    partitionKeys=["processed_timestamp"],
+    enableUpdateCatalog=True,
+    transformation_ctx="sink"
+)
+
+# Set catalog information and output format
+sink.setCatalogInfo(catalogDatabase="processed_data", catalogTableName="customer_processed")
+sink.setFormat("glueparquet", compression="snappy")
+
+# Write data to Amazon S3
+sink.writeFrame(dynamic_frame_with_timestamp)
+
+# Commit the job
+job.commit()
