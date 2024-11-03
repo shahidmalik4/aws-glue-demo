@@ -1,0 +1,109 @@
+Description:  This template deploys a se bucket and creates a Glue IAM service role of the AWS Glue Course by Johnny Chivers
+Parameters:
+  S3BucketForCourse: 
+    Description: Please enter the name for your S3 bucket. This will used throughout the "course" and must be unique globablly within AWS. 
+    Type: String 
+
+Resources:
+  S3BucketForAWSGlueCourse:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref S3BucketForCourse
+      Tags:
+        - Key: "course"
+          Value: "AWSGlueJohnnyChivers"
+
+  GlueIAMRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: AWSGlueCourse
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - glue.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Policies:
+        - PolicyName: AWSGlueCourseServicePolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - glue:*
+                  - lakeformation:*
+                  - s3:GetBucketLocation
+                  - s3:ListBucket
+                  - s3:ListAllMyBuckets
+                  - s3:GetBucketAcl
+                  - ec2:DescribeVpcEndpoints
+                  - ec2:DescribeRouteTables
+                  - ec2:CreateNetworkInterface
+                  - ec2:DeleteNetworkInterface
+                  - ec2:DescribeNetworkInterfaces
+                  - ec2:DescribeSecurityGroups
+                  - ec2:DescribeSubnets
+                  - ec2:DescribeVpcAttribute
+                  - iam:ListRolePolicies
+                  - iam:GetRole
+                  - iam:GetRolePolicy
+                  - cloudwatch:PutMetricData
+                Resource: "*"
+              - Effect: Allow
+                Action: 
+                  - s3:GetObject
+                  - s3:PutObject
+                  - s3:DeleteObject
+                Resource: 
+                  - arn:aws:s3:::aws-glue-*/*
+                  - arn:aws:s3:::*/*aws-glue-*/*
+                  - !GetAtt S3BucketForAWSGlueCourse.Arn
+                  - !Join 
+                    - ''
+                    - - !GetAtt S3BucketForAWSGlueCourse.Arn
+                      - /*
+              - Effect: Allow
+                Action: 
+                  - s3:GetObject
+                Resource: 
+                  - arn:aws:s3:::crawler-public*
+                  - arn:aws:s3:::aws-glue-*
+              - Effect: Allow 
+                Action: 
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: arn:aws:logs:*:*:*:/aws-glue/*
+              - Effect: Allow
+                Action: 
+                  - ec2:CreateTags
+                  - ec2:DeleteTags
+                Resource: 
+                  - arn:aws:ec2:*:*:network-interface/*
+                  - arn:aws:ec2:*:*:security-group/*
+                  - arn:aws:ec2:*:*:instance/*
+                Condition: 
+                  ForAllValues:StringEquals:
+                    aws:TagKeys:
+                    - aws-glue-service-resource
+                    
+  MyAthenaWorkGroup:
+    Type: AWS::Athena::WorkGroup
+    Properties:
+      Name: AWSGlueCourseAthenaWorkgroup
+      Description: The workgroup for the johnny chivers aws glue course. 
+      State: ENABLED
+      WorkGroupConfiguration:
+        BytesScannedCutoffPerQuery: 200000000
+        EnforceWorkGroupConfiguration: false
+        PublishCloudWatchMetricsEnabled: false
+        RequesterPaysEnabled: true
+        ResultConfiguration:
+          OutputLocation: !Sub s3://${S3BucketForAWSGlueCourse}/athena
+Outputs:
+  S3Bucket:
+    Description: A reference to the created S3 bucket
+    Value: !Ref S3BucketForAWSGlueCourse
