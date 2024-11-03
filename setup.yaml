@@ -1,22 +1,23 @@
-Description:  This template deploys a se bucket and creates a Glue IAM service role of the AWS Glue Course by Johnny Chivers
+Description: This template deploys an S3 bucket and creates an AWS Glue IAM service role for data processing.
+
 Parameters:
-  S3BucketForCourse: 
-    Description: Please enter the name for your S3 bucket. This will used throughout the "course" and must be unique globablly within AWS. 
+  S3BucketForETLProject: 
+    Description: Please enter the name for your S3 bucket. This must be unique globally within AWS.
     Type: String 
 
 Resources:
-  S3BucketForAWSGlueCourse:
+  S3BucketForGlueETLProject:
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: !Ref S3BucketForCourse
+      BucketName: !Ref S3BucketForETLProject
       Tags:
-        - Key: "course"
-          Value: "AWSGlueJohnnyChivers"
+        - Key: "Project"
+          Value: "AWSGlueETL"
 
   GlueIAMRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: AWSGlueCourse
+      RoleName: GlueETLRole
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -27,7 +28,7 @@ Resources:
             Action:
               - sts:AssumeRole
       Policies:
-        - PolicyName: AWSGlueCourseServicePolicy
+        - PolicyName: GlueETLServicePolicy
           PolicyDocument:
             Version: "2012-10-17"
             Statement:
@@ -58,19 +59,11 @@ Resources:
                   - s3:PutObject
                   - s3:DeleteObject
                 Resource: 
-                  - arn:aws:s3:::aws-glue-*/*
-                  - arn:aws:s3:::*/*aws-glue-*/*
-                  - !GetAtt S3BucketForAWSGlueCourse.Arn
+                  - !GetAtt S3BucketForGlueETLProject.Arn
                   - !Join 
                     - ''
-                    - - !GetAtt S3BucketForAWSGlueCourse.Arn
+                    - - !GetAtt S3BucketForGlueETLProject.Arn
                       - /*
-              - Effect: Allow
-                Action: 
-                  - s3:GetObject
-                Resource: 
-                  - arn:aws:s3:::crawler-public*
-                  - arn:aws:s3:::aws-glue-*
               - Effect: Allow 
                 Action: 
                   - logs:CreateLogGroup
@@ -89,21 +82,8 @@ Resources:
                   ForAllValues:StringEquals:
                     aws:TagKeys:
                     - aws-glue-service-resource
-                    
-  MyAthenaWorkGroup:
-    Type: AWS::Athena::WorkGroup
-    Properties:
-      Name: AWSGlueCourseAthenaWorkgroup
-      Description: The workgroup for the johnny chivers aws glue course. 
-      State: ENABLED
-      WorkGroupConfiguration:
-        BytesScannedCutoffPerQuery: 200000000
-        EnforceWorkGroupConfiguration: false
-        PublishCloudWatchMetricsEnabled: false
-        RequesterPaysEnabled: true
-        ResultConfiguration:
-          OutputLocation: !Sub s3://${S3BucketForAWSGlueCourse}/athena
+
 Outputs:
   S3Bucket:
     Description: A reference to the created S3 bucket
-    Value: !Ref S3BucketForAWSGlueCourse
+    Value: !Ref S3BucketForGlueETLProject
